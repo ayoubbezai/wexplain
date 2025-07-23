@@ -6,11 +6,18 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Spatie\Permission\Traits\HasRoles;
+use Illuminate\Support\Str;
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
+
+
 
 class User extends Authenticatable
 {
     /** @use HasFactory<\Database\Factories\UserFactory> */
-    use HasFactory, Notifiable;
+    use HasFactory, Notifiable,HasRoles,HasUuids;
+        public $incrementing = false; // Disable auto-incrementing
+        protected $keyType = 'string'; // UUID is a string
 
     /**
      * The attributes that are mass assignable.
@@ -18,7 +25,8 @@ class User extends Authenticatable
      * @var list<string>
      */
     protected $fillable = [
-        'name',
+        'first_name',
+        'last_name',
         'email',
         'password',
     ];
@@ -45,4 +53,18 @@ class User extends Authenticatable
             'password' => 'hashed',
         ];
     }
+
+    protected static function booted()
+    {
+        static::creating(function ($user) {
+            if (!$user->getKey()) {
+                $user->{$user->getKeyName()} = (string) Str::uuid();
+            }
+        });
+    }
+
+    public function student()
+{
+    return $this->hasOne(Student::class);
+}
 }

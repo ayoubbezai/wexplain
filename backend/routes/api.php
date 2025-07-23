@@ -39,3 +39,8 @@ Route::middleware(['web'])->post('/login', function (Request $request) {
 
     return response()->json(['message' => 'Invalid credentials'], 401);
 });
+
+
+use App\Http\Controllers\Auth\RegisterStudentController;
+
+Route::post('/register/student', RegisterStudentController::class);
