@@ -5,6 +5,8 @@ use App\Models\User;
 use App\Models\Student;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\DB;
+use App\Helpers\AuditLogger;
+
 
 class RegisterStudentService
 {
@@ -20,7 +22,7 @@ class RegisterStudentService
                 'last_name' => $dto->last_name,
             ]);
 
-             $user->assignRole('student'); 
+             $user->assignRole('student');
 
             // Create the student profile
             Student::create([
@@ -33,6 +35,18 @@ class RegisterStudentService
                 'date_of_birth' => $dto->date_of_birth,
                 'address' => $dto->address,
             ]);
+
+            // Log the registration event
+
+            AuditLogger::log(
+                userId: $user->id,
+                action: 'register new student his name is:'.  $dto->last_name ." ".  $dto->first_name,
+                tableName: 'students',
+                newValue: $dto,
+                recordId: $user->id,
+                method: 'create'
+            );
+
 
             DB::commit();
             return $user;

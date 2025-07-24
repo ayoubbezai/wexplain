@@ -67,4 +67,9 @@ class User extends Authenticatable
 {
     return $this->hasOne(Student::class);
 }
+
+public function auditLogs()
+{
+    return $this->hasMany(Audit_log::class, 'user_id');
+}
 }
