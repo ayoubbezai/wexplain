@@ -26,68 +26,68 @@ class AuditLogger
             throw new \Exception('IP address is required for logging audit events.');
         }
 
-        // Format old value
-        if ($oldValue) {
-            $formatted = [];
+        $oldValueFormatted = self::formatValue($oldValue, 'old');
+        $newValueFormatted = self::formatValue($newValue, $oldValueFormatted ? 'new' : 'create');
 
-            foreach ($oldValue as $key => $value) {
-                $key = strtolower($key);
-
-                if (in_array($key, ['password', 'password_confirmation'])) {
-                    $value = '********';
-                }
-
-                if (!in_array($key, ['updated_at', 'created_at', 'deleted_at']) && $value) {
-                    $formatted[] = "$key: $value";
-                }
-            }
-
-            $timestamp = $oldValue['updated_at'] ?? now();
-            $oldValue = 'It changed from: ' . implode(', ', $formatted) . ' at ' . $timestamp;
-        }
-
-        // Format new value
-        if ($newValue) {
-            $formatted = [];
-
-            foreach ($newValue as $key => $value) {
-                $key = strtolower($key);
-
-                if (in_array($key, ['password', 'password_confirmation'])) {
-                    $value = '********';
-                }
-
-                if (!in_array($key, ['updated_at', 'created_at', 'deleted_at']) && $value) {
-                    $formatted[] = "$key: $value";
-                }
-            }
-
-            if (!$oldValue) {
-                $newValue = 'The value is: ' . implode(', ', $formatted);
-            } else {
-                $newValue = 'It changed to: ' . implode(', ', $formatted);
-            }
-        }
-
-        // Prepare data
         $data = [
             'user_id'    => $userId,
             'action'     => $action,
             'table_name' => $tableName,
-            'old_value'  => $oldValue,
-            'new_value'  => $newValue,
+            'old_value'  => $oldValueFormatted,
+            'new_value'  => $newValueFormatted,
             'ip_address' => $ipAddress,
             'record_id'  => $recordId,
             'method'     => $method,
         ];
 
-        // Validate using AuditRequest rules
-        $rules = (new AuditRequest())->rules();
+        self::validateAndStore($data);
+    }
 
+    private static function formatValue($value, string $type): ?string
+    {
+        if (!is_array($value)) {
+            return $value;
+        }
+
+        $masked = [];
+        foreach ($value as $key => $val) {
+            $key = strtolower($key);
+
+            if (in_array($key, ['password', 'password_confirmation'])) {
+                $val = '********';
+            }
+
+            if (!in_array($key, ['updated_at', 'created_at', 'deleted_at']) && $val) {
+                $masked[] = "$key: $val";
+            }
+        }
+
+        if (empty($masked)) {
+            return null;
+        }
+
+        $joined = implode(', ', $masked);
+
+        if ($type === 'old') {
+            $timestamp = $value['updated_at'] ?? now();
+            return "It changed from: $joined at $timestamp";
+        }
+
+        return $type === 'new'
+            ? "It changed to: $joined"
+            : "The value is: $joined";
+    }
+
+    private static function validateAndStore(array $data): void
+    {
+        $rules = (new AuditRequest())->rules();
         $validator = Validator::make($data, $rules);
 
         if ($validator->fails()) {
-            throw new \Exception('Validation failed for audit log: ' . implode(', ', $validator->errors()->all()));
+            throw new \Exception(
+                'Validation failed for audit log: ' .
+                implode(', ', $validator->errors()->all())
+            );
         }
 
         Audit_log::create($validator->validated());
